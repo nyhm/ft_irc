@@ -180,7 +180,7 @@ If it happens, your project will be considered non-functional and your grade wil
 • コードはC++98標準に準拠していなければならず、-std=c++98フラグを付けてもコンパイルできる必要があります。
 
 • Try to always code using C++ features when available (for example, choose <cstring> over \<string.h>). You are allowed to use C functions, but always prefer their C++ versions if possible.
-• 可能な場合は常にC++の機能を使ってコードを書くようにしてください（例えば、\<string.h>ではなく<cstring>を使う）。C関数の使用は許可されていますが、可能な限りC++のバージョンを優先してください。
+• 可能な場合は常にC++の機能を使ってコードを書くようにしてください（例えば、<string.h>ではな<cstring>を使う）。C関数の使用は許可されていますが、可能な限りC++のバージョンを優先してください。
 
 • Any external library and Boost libraries are forbidden.
 • 外部ライブラリおよびBoostライブラリの使用は禁止されています。
