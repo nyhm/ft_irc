@@ -1,7 +1,7 @@
 # ft_irc
+https://cdn.intra.42.fr/pdf/pdf/156649/en.subject.pdf
 
-
-## ft\_ircを作るための基本設計と開発手順
+## ft_ircを作るための基本設計と開発手順
 
 ### 1. **設計フェーズ**
 
