@@ -1,5 +1,9 @@
 # ft_irc
+要件
 https://cdn.intra.42.fr/pdf/pdf/156649/en.subject.pdf
+
+レビュー
+https://web.archive.org/web/20250429115023/https://42-evaluation-sheets-hub.vercel.app/Cursus/Ft_irc/
 
 ## ft_ircを作るための基本設計と開発手順
 
