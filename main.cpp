@@ -28,7 +28,7 @@ struct Client {
     bool passOk;     // パスワード確認済みフラグ
     bool capDone;
     
-    Client(int f = -1) : fd(f), registered(false), passOk(false) {}
+    Client(int f = -1) : fd(f), registered(false), passOk(false) ,capDone(false) {}
 };
 
 // チャンネルメンバーの役割
