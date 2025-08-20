@@ -218,6 +218,12 @@ static void sendWelcome(Client& client) {
     
     // MOTD（順序を修正）
     sendNumeric(client, 375, nick, ":- server Message of the day -");
+    sendNumeric(client, 372, nick, ":███████╗ ████████╗        ██████╗ ██████╗  ██████╗ ");
+    sendNumeric(client, 372, nick, ":██╔════╝ ╚══██╔══╝          ██╔═╝ ██╔══██╗██╔════╝ ");
+    sendNumeric(client, 372, nick, ":███████╗    ██║             ██║   ██████╔╝██║      ");
+    sendNumeric(client, 372, nick, ":██╔════╝    ██║             ██║   ██╔══██╗██║      ");
+    sendNumeric(client, 372, nick, ":██║         ██║ ████████╗ ██████╗ ██║  ██║╚██████╗ ");
+    sendNumeric(client, 372, nick, ":╚═╝         ╚═╝ ╚═══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ");
     sendNumeric(client, 372, nick, ":- Welcome to ft_irc server!");
     sendNumeric(client, 376, nick, ":End of /MOTD command.");
 }
