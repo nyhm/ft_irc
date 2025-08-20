@@ -318,6 +318,7 @@ static void checkRegistrationComplete(Client& client) {
         sendWelcome(client);
     }
     else if (!client.registered &&
+        client.passOk &&
         !client.nickname.empty() &&
         !client.username.empty() &&
         client.capDone) // CAP END受信後にtrueにする
