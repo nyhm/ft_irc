@@ -1,5 +1,6 @@
 使用するには
 
+git clone git@github.com:nyhm/ft_irc.git
 
 make
 ./ircserv 6667 pass
