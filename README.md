@@ -1,19 +1,32 @@
 使用するには
 
 git clone git@github.com:nyhm/ft_irc.git
+
 cd ft_irc
+
 make
+
 ./ircserv 6667 pass
 
+
 これで起動します
+
 6667のポートにpassというpasswordを設定したことになります
+
+
 ターミナルを別で開き
 
 nc -C 127.0.0.1 667
+
 で個人アカウントが起動
 
+
 PASS pass
+
 NICK 任意の名前
+
 USER 任意の名前 0 * :任意の名前
+
+
 
 これで個人アカウントができます
