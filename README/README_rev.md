@@ -154,12 +154,12 @@ Rate it from 0 (failed) through 5 (excellent)
 
 | チェック内容                                         | 説明                                          |
 | ---------------------------------------------- | ------------------------------------------- |
-| Makefile があるか                                  | `make` でコンパイルできる                            |
-| C++ で書かれているか                                   | C言語ではNG                                     |
+| Makefile があるか                                      | `make` でコンパイルできる                            |
+| C++ で書かれているか                                      | C言語ではNG                                     |
 | 実行ファイル名が正しいか                                   | `ircserv`など指定された名前か                         |
-| `poll()` は1箇所だけか                               | イベントループで1回使うだけ（selectやepollでも同様）            |
+| `poll()` は1箇所だけか                                   | イベントループで1回使うだけ（selectやepollでも同様）            |
 | `poll()` は必ず `accept`/`read`/`write` 前に呼ばれているか | 読み書き・accept前に必須。`errno == EAGAIN` のような分岐はNG |
-| `fcntl()` は `F_SETFL, O_NONBLOCK` だけか          | 他の使い方はNG                                    |
+| `fcntl()` は `F_SETFL, O_NONBLOCK` だけか               | 他の使い方はNG                                    |
 
 ⚠ これらに1つでも違反すると「評価中止・0点」。
 

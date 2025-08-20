@@ -26,6 +26,7 @@ struct Client {
     std::string username; // ユーザー名
     std::string realname; // 実名
     bool passOk;     // パスワード確認済みフラグ
+    bool capDone;
     
     Client(int f = -1) : fd(f), registered(false), passOk(false) {}
 };
@@ -89,6 +90,8 @@ struct Channel {
     }
 };
 
+// 登録完了チェック関数
+static void checkRegistrationComplete(Client& client);
 // コマンドハンドラの型定義
 typedef void (*CommandHandler)(Client&, const Message&);
 
@@ -111,6 +114,38 @@ static std::map<int, Client> clients;
 
 // pollfd配列（グローバル変数）
 static std::vector<pollfd> pfds;
+
+//irssiに対応する
+static void handleCap(Client& client, const Message& msg) {
+    if (msg.args.size() >= 1 && msg.args[0] == "LS") {
+        // サポートしている機能が無いので空で返す
+        std::printf(":irc.example.com CAP %s LS :\r\n",
+            client.nickname.c_str());
+        client.wbuf += ":irc.example.com CAP "+ (client.nickname.empty() ? std::string("*") : client.nickname)+ " LS :\r\n";
+
+    } else if (msg.args.size() >= 1 && msg.args[0] == "END") {
+        
+        client.capDone=true;
+        std::printf("capDone\r\n");
+        checkRegistrationComplete(client);
+    } else if (msg.args.size() >= 1 && msg.args[0] == "REQ") {
+        // 全部拒否する
+        if (msg.args.size() >= 2) {
+            std::printf(":irc.example.com CAP %s NAK :%s\r\n",
+            client.nickname.c_str(),
+            msg.args[1].c_str());
+            client.wbuf += ":irc.example.com CAP " +(client.nickname.empty() ? std::string("*") : client.nickname) + " NAK :" + msg.args[1] + "\r\n";
+        }
+    } else {
+        // その他のCAPは全部ACKで流す
+        std::printf(":irc.example.com CAP %s ASK :\r\n",
+            client.nickname.c_str());
+        client.wbuf += ":irc.example.com CAP " +(client.nickname.empty() ? std::string("*") : client.nickname)+ " ACK :\r\n";
+    }
+    std::printf("CMD=%s\n", msg.cmd.c_str());
+}
+
+
 
 // チャンネルを検索
 static Channel* findChannel(const std::string& name) {
@@ -278,9 +313,30 @@ static bool isValidChannelName(const std::string& channelName) {
 
 // 登録完了チェック関数
 static void checkRegistrationComplete(Client& client) {
-    if (!client.registered && client.passOk && !client.nickname.empty() && !client.username.empty()) {
+    if (!client.registered && client.passOk && !client.nickname.empty() && !client.username.empty()&&client.capDone!=true) {
         client.registered = true;
         sendWelcome(client);
+    }
+    else if (!client.registered &&
+        !client.nickname.empty() &&
+        !client.username.empty() &&
+        client.capDone) // CAP END受信後にtrueにする
+    {
+        std::printf("ログイン\r\n");
+        client.registered = true;
+
+        // 001〜004 を返す
+        client.wbuf += ":irc.example.com 001 " + client.nickname + " :Welcome to the IRC network " + client.nickname + "\r\n";
+        client.wbuf += ":irc.example.com 002 " + client.nickname + " :Your host is irc.example.com, running version 1.0\r\n";
+        client.wbuf += ":irc.example.com 003 " + client.nickname + " :This server was created just now\r\n";
+        client.wbuf += ":irc.example.com 004 " + client.nickname + " irc.example.com 1.0 o o\r\n";
+
+        // MOTD (おまけ)
+        client.wbuf += ":irc.example.com 375 " + client.nickname + " :- irc.example.com Message of the Day -\r\n";
+        client.wbuf += ":irc.example.com 372 " + client.nickname + " :- Hello world!\r\n";
+        client.wbuf += ":irc.example.com 376 " + client.nickname + " :End of /MOTD command.\r\n";
+
+        std::printf("REGISTERED: %s\n", client.nickname.c_str());
     }
 }
 
@@ -1198,6 +1254,7 @@ int main(int argc, char **argv) {
     commandHandlersInit["PING"] = handlePing;
     commandHandlersInit["QUIT"] = handleQuit;
     commandHandlersInit["UNKNOWN"] = handleUnknown;
+    commandHandlersInit["CAP"] = handleCap;
 
     if (argc != 3) {
         std::fprintf(stderr, "Usage: %s <port> <pass>\n", argv[0]);
@@ -1326,6 +1383,7 @@ int main(int argc, char **argv) {
 
                 std::string line;
                 while (pop_line(cl.rbuf, line)) {
+                    std::printf("RAW LINE: [%s]\n", line.c_str());  // デバック用
                     Message msg;
                     if (!Parser::parse(line, msg)) continue;
 
