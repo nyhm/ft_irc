@@ -194,6 +194,11 @@ static void sendNeedMoreParams(Client& client, const std::string& command) {
 static void sendNotRegistered(Client& client, const std::string&) {
     sendNumeric(client, 451, "*", "You have not registered");
 }
+// ERR_NOTONCHANNEL (442) 汎用関数
+static void sendNotonchannel(Client& client, const std::string& channelName) {
+    sendNumeric(client, 442, client.nickname, channelName + " :You're not on that channel");
+}
+
 
 // ウェルカムメッセージ送信関数（順序を修正）
 static void sendWelcome(Client& client) {
@@ -276,7 +281,7 @@ static void checkRegistrationComplete(Client& client) {
 // コマンドハンドラ関数
 static void handlePass(Client& client, const Message& msg) {
     if (msg.args.size() < 1) {
-        sendNumeric(client, 461, client.nickname.empty() ? "*" : client.nickname, "PASS :Not enough parameters");
+        sendNumeric(client, 461, client.nickname.empty() ? "*" : client.nickname, "PASS :Not enough parameters.");
         return;
     }
     
@@ -294,7 +299,7 @@ static void handlePass(Client& client, const Message& msg) {
 
 static void handleJoin(Client& client, const Message& msg) {
     if (msg.args.size() < 1) {
-        sendNumeric(client, 461, client.nickname.empty() ? "*" : client.nickname, "JOIN :Not enough parameters");
+        sendNumeric(client, 461, client.nickname.empty() ? "*" : client.nickname, "JOIN :Not enough parameters.");
         return;
     }
     
@@ -423,12 +428,6 @@ static void handleMode(Client& client, const Message& msg) {
             return;
         }
         
-        // チャンネルのメンバーかチェック
-        if (!channel->hasMember(client.nickname)) {
-            sendNumeric(client, 442, client.nickname.empty() ? "*" : client.nickname, target + " :You're not on that channel");
-            return;
-        }
-        
         // オペレーター権限チェック（一部のモード変更には必要）
         ChannelRole role = channel->getRole(client.nickname);
         bool isOperator = (role == ROLE_OPERATOR);
@@ -475,7 +474,7 @@ static void handleMode(Client& client, const Message& msg) {
                 case 'k': // key
                     if (adding) {
                         if (modeArgs.empty()) {
-                            sendNumeric(client, 461, client.nickname, "MODE +k :Not enough parameters");
+                            sendNumeric(client, 461, client.nickname, "MODE +k :Not enough parameters.");
                             return;
                         }
                         channel->key = modeArgs;
@@ -496,7 +495,7 @@ static void handleMode(Client& client, const Message& msg) {
                 case 'l': // limit
                     if (adding) {
                         if (modeArgs.empty()) {
-                            sendNumeric(client, 461, client.nickname, "MODE +l :Not enough parameters");
+                            sendNumeric(client, 461, client.nickname, "MODE +l :Not enough parameters.");
                             return;
                         }
                         int limit = std::atoi(modeArgs.c_str());
@@ -521,7 +520,7 @@ static void handleMode(Client& client, const Message& msg) {
                     }
                     
                     if (modeArgs.empty()) {
-                        sendNumeric(client, 461, client.nickname, "MODE +o :Not enough parameters");
+                        sendNumeric(client, 461, client.nickname, "MODE +o :Not enough parameters.");
                         return;
                     }
                     
@@ -552,6 +551,7 @@ static void handleMode(Client& client, const Message& msg) {
             for (std::map<int, Client>::iterator it = clients.begin(); it != clients.end(); ++it) {
                 if (channel->hasMember(it->second.nickname)) {
                     it->second.wbuf += modeMsg;
+                    setPollout(it->first);
                 }
             }
             
@@ -587,13 +587,13 @@ static void handleMode(Client& client, const Message& msg) {
 
 static void handleKick(Client& client, const Message& msg) {
     if (msg.args.size() < 2) {
-        sendNumeric(client, 461, client.nickname.empty() ? "*" : client.nickname, "KICK :Not enough parameters");
+        sendNumeric(client, 461, client.nickname.empty() ? "*" : client.nickname, "KICK :Not enough parameters.");
         return;
     }
     
     std::string channelName = msg.args[0];
     std::string targetNick = msg.args[1];
-    std::string comment = (msg.args.size() > 2) ? msg.args[2] : "No reason";
+    std::string comment = (msg.args.size() > 2) ? msg.args[2] : client.nickname;
     
     // チャンネル名の検証
     if (channelName[0] != '#') {
@@ -610,7 +610,7 @@ static void handleKick(Client& client, const Message& msg) {
     
     // チャンネルのメンバーかチェック
     if (!channel->hasMember(client.nickname)) {
-        sendNumeric(client, 442, client.nickname.empty() ? "*" : client.nickname, channelName + " :You're not on that channel");
+        sendNotonchannel(client,channelName);
         return;
     }
     
@@ -627,18 +627,13 @@ static void handleKick(Client& client, const Message& msg) {
         return;
     }
     
-    // 自分自身をKICKしようとしている場合
-    if (client.nickname == targetNick) {
-        sendNumeric(client, 482, client.nickname, channelName + " :You cannot kick yourself");
-        return;
-    }
-    
     // チャンネル内の全メンバーにKICK通知を送信
     std::string kickMsg = prefix(client) + " KICK " + channelName + " " + targetNick + " :" + comment + "\r\n";
     
     for (std::map<int, Client>::iterator it = clients.begin(); it != clients.end(); ++it) {
         if (channel->hasMember(it->second.nickname)) {
             it->second.wbuf += kickMsg;
+            setPollout(it->first);
         }
     }
     
@@ -658,7 +653,7 @@ static void handleKick(Client& client, const Message& msg) {
 
 static void handleInvite(Client& client, const Message& msg) {
     if (msg.args.size() < 2) {
-        sendNumeric(client, 461, client.nickname.empty() ? "*" : client.nickname, "INVITE :Not enough parameters");
+        sendNumeric(client, 461, client.nickname.empty() ? "*" : client.nickname, "INVITE :Not enough parameters.");
         return;
     }
     
@@ -680,7 +675,7 @@ static void handleInvite(Client& client, const Message& msg) {
     
     // チャンネルのメンバーかチェック
     if (!channel->hasMember(client.nickname)) {
-        sendNumeric(client, 442, client.nickname.empty() ? "*" : client.nickname, channelName + " :You're not on that channel");
+        sendNotonchannel(client,channelName);
         return;
     }
     
@@ -731,7 +726,7 @@ static void handleInvite(Client& client, const Message& msg) {
 
 static void handleTopic(Client& client, const Message& msg) {
     if (msg.args.size() < 1) {
-        sendNumeric(client, 461, client.nickname.empty() ? "*" : client.nickname, "TOPIC :Not enough parameters");
+        sendNumeric(client, 461, client.nickname.empty() ? "*" : client.nickname, "TOPIC :Not enough parameters.");
         return;
     }
     
@@ -750,11 +745,6 @@ static void handleTopic(Client& client, const Message& msg) {
         return;
     }
     
-    // チャンネルのメンバーかチェック
-    if (!channel->hasMember(client.nickname)) {
-        sendNumeric(client, 442, client.nickname.empty() ? "*" : client.nickname, channelName + " :You're not on that channel");
-        return;
-    }
     
     // トピックの取得（引数が1つの場合）
     if (msg.args.size() == 1) {
@@ -766,6 +756,11 @@ static void handleTopic(Client& client, const Message& msg) {
             sendNumeric(client, 332, client.nickname, channelName + " :" + channel->topic);
             sendNumeric(client, 333, client.nickname, channelName + " " + client.nickname + "!" + client.username + " " + std::to_string(channel->topicTime));
         }
+        return;
+    }
+    // チャンネルのメンバーかチェック
+    if (!channel->hasMember(client.nickname)) {
+        sendNumeric(client, 442, client.nickname.empty() ? "*" : client.nickname, channelName + " :You're not on that channel");
         return;
     }
     
@@ -792,6 +787,7 @@ static void handleTopic(Client& client, const Message& msg) {
     for (std::map<int, Client>::iterator it = clients.begin(); it != clients.end(); ++it) {
         if (it->second.nickname == client.nickname || channel->hasMember(it->second.nickname)) {
             it->second.wbuf += topicMsg;
+            setPollout(it->first);
         }
     }
     
@@ -801,18 +797,12 @@ static void handleTopic(Client& client, const Message& msg) {
 
 static void handlePrivmsg(Client& client, const Message& msg) {
     if (msg.args.size() < 2) {
-        sendNumeric(client, 411, client.nickname.empty() ? "*" : client.nickname, "No recipient given (PRIVMSG)");
+        sendNeedMoreParams(client, msg.cmd);
         return;
     }
     
     std::string target = msg.args[0];
     std::string message = msg.args[1];
-    
-    // メッセージが空の場合
-    if (message.empty()) {
-        sendNumeric(client, 412, client.nickname.empty() ? "*" : client.nickname, "No text to send");
-        return;
-    }
     
     // チャンネル宛の場合
     if (target[0] == '#') {
@@ -822,9 +812,9 @@ static void handlePrivmsg(Client& client, const Message& msg) {
             return;
         }
         
-        // チャンネルのメンバーかチェック
+        // メンバー外404
         if (!channel->hasMember(client.nickname)) {
-            sendNumeric(client, 442, client.nickname.empty() ? "*" : client.nickname, target + " :You're not on that channel");
+            sendNumeric(client, 404, client.nickname.empty() ? "*" : client.nickname, target + " :You cannot send external messages to this channel whilst the +n (noextmsg) mode is set.");
             return;
         }
         
@@ -894,7 +884,7 @@ static void handlePart(Client& client, const Message& msg) {
     
     // チャンネルのメンバーかチェック
     if (!channel->hasMember(client.nickname)) {
-        sendNumeric(client, 442, client.nickname, channelName + " :You're not on that channel");
+        sendNotonchannel(client,channelName);
         return;
     }
     
@@ -902,7 +892,7 @@ static void handlePart(Client& client, const Message& msg) {
     std::string partMsg;
     if (msg.args.size() > 1) {
         // カスタムメッセージがある場合
-        partMsg = prefix(client) + " PART " + channelName + " :" + msg.args[1] + "\r\n";
+        partMsg = prefix(client) + " PART " + channelName + " :"+'"' + msg.args[1]+'"' + "\r\n";
     } else {
         // デフォルトメッセージ
         partMsg = prefix(client) + " PART " + channelName + " :Leaving\r\n";
@@ -933,7 +923,7 @@ static void handlePart(Client& client, const Message& msg) {
 
 static void handleNick(Client& client, const Message& msg) {
     if (msg.args.size() < 1) {
-        sendNumeric(client, 431, client.nickname.empty() ? "*" : client.nickname, ":No nickname given");
+        sendNumeric(client, 461, client.nickname.empty() ? "*" : client.nickname, "nick :Not enough parameters.");
         return;
     }
     
@@ -969,7 +959,7 @@ static void handleNick(Client& client, const Message& msg) {
 
 static void handleUser(Client& client, const Message& msg) {
     if (msg.args.size() < 4) {
-        sendNumeric(client, 461, client.nickname.empty() ? "*" : client.nickname, "USER :Not enough parameters");
+        sendNumeric(client, 461, client.nickname.empty() ? "*" : client.nickname, "USER :Not enough parameters.");
         return;
     }
     
@@ -985,13 +975,6 @@ static void handleUser(Client& client, const Message& msg) {
     
     // 登録完了チェック
     checkRegistrationComplete(client);
-    
-    // 登録済みの場合のみ応答を送信
-    if (client.registered) {
-        // ユーザー登録の確認
-        std::string userMsg = prefix(client) + " USER " + client.username + " 0 * :" + client.realname + "\r\n";
-        client.wbuf += userMsg;
-    }
 }
 
 static void handlePing(Client& client, const Message& msg) {
@@ -1056,7 +1039,8 @@ static void handleQuit(Client& client, const Message& msg) {
             }
         }
     }
-    
+    close(client.fd);  
+    clients.erase(client.fd);
     std::printf("QUIT: %s disconnected from %zu channels\n", 
                 client.nickname.c_str(), channelsToLeave.size());
 }
