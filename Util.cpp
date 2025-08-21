@@ -1,5 +1,15 @@
 #include "Util.hpp"
 
+// pollfd配列（グローバル変数）
+std::vector<pollfd> pfds;
+std::string serverPassword;
+
+std::set<std::string> requiresRegistrationInit;
+std::map<std::string, Client::CommandHandler> commandHandlersInit;
+// コマンドディスパッチテーブル
+std::set<std::string>& requiresRegistration = requiresRegistrationInit;
+std::map<std::string, Client::CommandHandler>& commandHandlers = commandHandlersInit;
+
 
 // 数値応答のフォーマット統一関数
 void sendNumeric(Client& client, int code, const std::string& target, const std::string& message) {
@@ -53,4 +63,29 @@ void sendNotRegistered(Client& client, const std::string&) {
 // ERR_NOTONCHANNEL (442) 汎用関数
 void sendNotonchannel(Client& client, const std::string& channelName) {
     sendNumeric(client, 442, client.nickname, channelName + " :You're not on that channel");
+}
+
+// プレフィックス生成関数
+ std::string prefix(const Client& client) {
+    if (client.nickname.empty() || client.username.empty()) {
+        return ":server";
+    }
+    return ":" + client.nickname + "!" + client.username + "@localhost";
+}
+
+
+// 送信要求を設定する関数
+ void setPollout(int fd) {
+    for (size_t i = 0; i < pfds.size(); ++i) {
+        if (pfds[i].fd == fd) {
+            pfds[i].events |= POLLOUT;
+            std::printf("SETPOLLOUT: fd=%d, events=0x%x\n", fd, pfds[i].events);
+            break;
+        }
+    }
+}
+
+void handleUnknown(Client& client, const Message& msg) {
+    sendNumeric(client, 421, client.nickname, msg.cmd  + " :Unknown command");
+        return;
 }

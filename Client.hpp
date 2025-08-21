@@ -6,7 +6,7 @@
 /*   By: hnagashi <hnagashi@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/08/12 19:20:40 by hnagashi          #+#    #+#             */
-/*   Updated: 2025/08/21 08:54:40 by hnagashi         ###   ########.fr       */
+/*   Updated: 2025/08/21 10:39:53 by hnagashi         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,6 +15,7 @@
 
 #include <string>
 #include <map>
+#include <unistd.h>
 #include "Parser.hpp"
 
 
@@ -44,7 +45,13 @@ class Client{
     typedef void (*CommandHandler)(Client&, const Message&);
     // 登録完了チェック関数
     void checkRegistrationComplete();
+    
 
 };
-
+bool isValidNickname(const std::string& nickname);
+void handleNick(Client& client, const Message& msg);
+void handleUser(Client& client, const Message& msg);
+void handlePass(Client& client, const Message& msg);
+void handleQuit(Client& client, const Message& msg);
+void cleanupClient(int clientFd);
 #endif
