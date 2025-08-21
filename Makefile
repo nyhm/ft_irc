@@ -6,7 +6,7 @@
 #    By: hnagashi <hnagashi@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/08/06 09:18:03 by hnagashi          #+#    #+#              #
-#    Updated: 2025/08/15 18:22:28 by hnagashi         ###   ########.fr        #
+#    Updated: 2025/08/21 08:04:04 by hnagashi         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -15,7 +15,7 @@ CXX := c++
 CXXFLAGS := -std=c++98 -Wall -Wextra -Werror
 CPPFLAGS := -I.
 
-SRC := main.cpp Parser.cpp
+SRC := main.cpp Parser.cpp Client.cpp Util.cpp
 OBJ := $(SRC:.cpp=.o)
 
 all: $(NAME)

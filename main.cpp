@@ -16,27 +16,10 @@
 #include <poll.h>
 #include <iostream> //デバック用?
 #include "Parser.hpp"
+#include "Client.hpp"
+#include "Util.hpp"
 
-struct Client {
-    int fd;
-    std::string rbuf; // 受信バッファ
-    std::string wbuf; // 送信キュー
-    bool registered;  // 登録済みフラグ
-    std::string nickname; // ニックネーム
-    std::string username; // ユーザー名
-    std::string realname; // 実名
-    bool passOk;     // パスワード確認済みフラグ
-    bool capDone;
-    
-    Client(int f = -1) : fd(f), registered(false), passOk(false) ,capDone(false) {}
-};
 
-// チャンネルメンバーの役割
-enum ChannelRole {
-    ROLE_NORMAL = 0,
-    ROLE_OPERATOR = 1,
-    ROLE_VOICE = 2
-};
 
 struct Channel {
     std::string name;                    // チャンネル名
@@ -90,27 +73,24 @@ struct Channel {
     }
 };
 
-// 登録完了チェック関数
-static void checkRegistrationComplete(Client& client);
-// コマンドハンドラの型定義
-typedef void (*CommandHandler)(Client&, const Message&);
 
 // サーバーパスワード（グローバル変数）
 std::string serverPassword;
 
+// クライアントが在室している全チャンネルを検索
+    std::vector<std::string> channelsToLeave;
+
 // 登録が必要なコマンドのセット（初期化）
 static std::set<std::string> requiresRegistrationInit;
-static std::map<std::string, CommandHandler> commandHandlersInit;
+static std::map<std::string, Client::CommandHandler> commandHandlersInit;
 
 // コマンドディスパッチテーブル
 static const std::set<std::string>& requiresRegistration = requiresRegistrationInit;
-static const std::map<std::string, CommandHandler>& commandHandlers = commandHandlersInit;
+static const std::map<std::string, Client::CommandHandler>& commandHandlers = commandHandlersInit;
 
 // チャンネル管理（Serverクラスの概念）
 static std::map<std::string, Channel> channels;
 
-// クライアント管理（グローバル変数）
-static std::map<int, Client> clients;
 
 // pollfd配列（グローバル変数）
 static std::vector<pollfd> pfds;
@@ -127,7 +107,7 @@ static void handleCap(Client& client, const Message& msg) {
         
         client.capDone=true;
         std::printf("capDone\r\n");
-        checkRegistrationComplete(client);
+        client.checkRegistrationComplete();
     } else if (msg.args.size() >= 1 && msg.args[0] == "REQ") {
         // 全部拒否する
         if (msg.args.size() >= 2) {
@@ -211,58 +191,6 @@ static void broadcast(std::map<int, Client>& clients, const std::string& msg, in
 }
 */
 
-// 数値応答のフォーマット統一関数
-static void sendNumeric(Client& client, int code, const std::string& target, const std::string& message) {
-    char codeStr[4];
-    std::snprintf(codeStr, sizeof(codeStr), "%03d", code);
-    std::string response = ":server " + std::string(codeStr) + " " + target + " " + message + "\r\n";
-    client.wbuf += response;
-}
-
-
-// ERR_NEEDMOREPARAMS (461) 汎用関数
-static void sendNeedMoreParams(Client& client, const std::string& command) {
-    sendNumeric(client, 461, client.nickname.empty() ? "*" : client.nickname, command + " :Not enough parameters.");
-}
-
-// ERR_NOTREGISTERED (451) 汎用関数
-static void sendNotRegistered(Client& client, const std::string&) {
-    sendNumeric(client, 451, "*", "You have not registered");
-}
-// ERR_NOTONCHANNEL (442) 汎用関数
-static void sendNotonchannel(Client& client, const std::string& channelName) {
-    sendNumeric(client, 442, client.nickname, channelName + " :You're not on that channel");
-}
-
-
-// ウェルカムメッセージ送信関数（順序を修正）
-static void sendWelcome(Client& client) {
-    std::string nick = client.nickname.empty() ? "*" : client.nickname;
-    
-    // 001: Welcome message
-    sendNumeric(client, 001, nick, "Welcome to the Internet Relay Network " + nick);
-    
-    // 002: Your host
-    sendNumeric(client, 002, nick, "Your host is server, running version 1.0");
-    
-    // 003: Server creation date
-    sendNumeric(client, 003, nick, "This server was created today");
-    
-    // 004: Server info
-    sendNumeric(client, 004, nick, "server 1.0 o o");
-    
-    // MOTD（順序を修正）
-    sendNumeric(client, 375, nick, ":- server Message of the day -");
-    sendNumeric(client, 372, nick, ":███████╗ ████████╗        ██████╗ ██████╗  ██████╗ ");
-    sendNumeric(client, 372, nick, ":██╔════╝ ╚══██╔══╝          ██╔═╝ ██╔══██╗██╔════╝ ");
-    sendNumeric(client, 372, nick, ":███████╗    ██║             ██║   ██████╔╝██║      ");
-    sendNumeric(client, 372, nick, ":██╔════╝    ██║             ██║   ██╔══██╗██║      ");
-    sendNumeric(client, 372, nick, ":██║         ██║ ████████╗ ██████╗ ██║  ██║╚██████╗ ");
-    sendNumeric(client, 372, nick, ":╚═╝         ╚═╝ ╚═══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ");
-    sendNumeric(client, 372, nick, ":- Welcome to ft_irc server!");
-    sendNumeric(client, 376, nick, ":End of /MOTD command.");
-}
-
 // 文字列長・ニック/チャンネル名バリデーション関数
 static bool isValidNickname(const std::string& nickname) {
     if (nickname.empty() || nickname.length() > 9) {
@@ -311,35 +239,6 @@ static bool isValidChannelName(const std::string& channelName) {
     return true;
 }
 
-// 登録完了チェック関数
-static void checkRegistrationComplete(Client& client) {
-    if (!client.registered && client.passOk && !client.nickname.empty() && !client.username.empty()&&client.capDone!=true) {
-        client.registered = true;
-        sendWelcome(client);
-    }
-    else if (!client.registered &&
-        client.passOk &&
-        !client.nickname.empty() &&
-        !client.username.empty() &&
-        client.capDone) // CAP END受信後にtrueにする
-    {
-        std::printf("ログイン\r\n");
-        client.registered = true;
-
-        // 001〜004 を返す
-        client.wbuf += ":irc.example.com 001 " + client.nickname + " :Welcome to the IRC network " + client.nickname + "\r\n";
-        client.wbuf += ":irc.example.com 002 " + client.nickname + " :Your host is irc.example.com, running version 1.0\r\n";
-        client.wbuf += ":irc.example.com 003 " + client.nickname + " :This server was created just now\r\n";
-        client.wbuf += ":irc.example.com 004 " + client.nickname + " irc.example.com 1.0 o o\r\n";
-
-        // MOTD (おまけ)
-        client.wbuf += ":irc.example.com 375 " + client.nickname + " :- irc.example.com Message of the Day -\r\n";
-        client.wbuf += ":irc.example.com 372 " + client.nickname + " :- Hello world!\r\n";
-        client.wbuf += ":irc.example.com 376 " + client.nickname + " :End of /MOTD command.\r\n";
-
-        std::printf("REGISTERED: %s\n", client.nickname.c_str());
-    }
-}
 
 // コマンドハンドラ関数
 static void handlePass(Client& client, const Message& msg) {
@@ -351,12 +250,14 @@ static void handlePass(Client& client, const Message& msg) {
     // パスワードチェック（サーバーパスワードと比較）
     if (msg.args[0] == serverPassword) {
         client.passOk = true;
-        checkRegistrationComplete(client);
+        client.checkRegistrationComplete();
     } else {
-        // パスワード不一致で464エラーを送信して切断
-        sendNumeric(client, 464, client.nickname.empty() ? "*" : client.nickname, ":Password incorrect");
         // 切断フラグを設定（後で処理）
-        client.wbuf += "ERROR :Password incorrect\r\n";
+        std::string nick = client.nickname.empty() ? "*" : client.nickname;
+
+    client.wbuf += "ERROR :Closing link: (" 
+                 + nick + "@localhost) [Bad password]\r\n";
+        client.logout=true;
     }
 }
 
@@ -420,7 +321,7 @@ static void handleJoin(Client& client, const Message& msg) {
     std::string joinMsg = prefix(client) + " JOIN :" + channelName + "\r\n";
     
             // チャンネル内の全メンバーに送信
-        for (std::map<int, Client>::iterator it = clients.begin(); it != clients.end(); ++it) {
+        for (std::map<int, Client>::iterator it =  Client::clients.begin(); it !=  Client::clients.end(); ++it) {
             if (channel->hasMember(it->second.nickname)) {
                 it->second.wbuf += joinMsg;
                 setPollout(it->first);
@@ -611,7 +512,7 @@ static void handleMode(Client& client, const Message& msg) {
             // チャンネル内の全メンバーにMODE変更通知を送信
             std::string modeMsg = prefix(client) + " MODE " + target + " " + response + "\r\n";
             
-            for (std::map<int, Client>::iterator it = clients.begin(); it != clients.end(); ++it) {
+            for (std::map<int, Client>::iterator it =  Client::clients.begin(); it !=  Client::clients.end(); ++it) {
                 if (channel->hasMember(it->second.nickname)) {
                     it->second.wbuf += modeMsg;
                     setPollout(it->first);
@@ -693,7 +594,7 @@ static void handleKick(Client& client, const Message& msg) {
     // チャンネル内の全メンバーにKICK通知を送信
     std::string kickMsg = prefix(client) + " KICK " + channelName + " " + targetNick + " :" + comment + "\r\n";
     
-    for (std::map<int, Client>::iterator it = clients.begin(); it != clients.end(); ++it) {
+    for (std::map<int, Client>::iterator it =  Client::clients.begin(); it !=  Client::clients.end(); ++it) {
         if (channel->hasMember(it->second.nickname)) {
             it->second.wbuf += kickMsg;
             setPollout(it->first);
@@ -754,7 +655,7 @@ static void handleInvite(Client& client, const Message& msg) {
     // 対象ユーザーの存在確認
     bool targetFound = false;
     int targetFd = -1;
-    for (std::map<int, Client>::iterator it = clients.begin(); it != clients.end(); ++it) {
+    for (std::map<int, Client>::iterator it =  Client::clients.begin(); it !=  Client::clients.end(); ++it) {
         if (it->second.nickname == targetNick) {
             targetFound = true;
             targetFd = it->first;
@@ -778,7 +679,7 @@ static void handleInvite(Client& client, const Message& msg) {
     
     // 対象ユーザーにINVITE通知を送信
     std::string inviteMsg = prefix(client) + " INVITE " + targetNick + " :" + channelName + "\r\n";
-    clients[targetFd].wbuf += inviteMsg;
+     Client::clients[targetFd].wbuf += inviteMsg;
     
     // 送り主に341確認を送信
     sendNumeric(client, 341, client.nickname, targetNick + " " + channelName);
@@ -847,7 +748,7 @@ static void handleTopic(Client& client, const Message& msg) {
     std::string topicMsg = prefix(client) + " TOPIC " + channelName + " :" + newTopic + "\r\n";
     
     // チャンネル内の全メンバーに送信（自分を含む）
-    for (std::map<int, Client>::iterator it = clients.begin(); it != clients.end(); ++it) {
+    for (std::map<int, Client>::iterator it =  Client::clients.begin(); it !=  Client::clients.end(); ++it) {
         if (it->second.nickname == client.nickname || channel->hasMember(it->second.nickname)) {
             it->second.wbuf += topicMsg;
             setPollout(it->first);
@@ -885,7 +786,7 @@ static void handlePrivmsg(Client& client, const Message& msg) {
         std::string privmsgMsg = prefix(client) + " PRIVMSG " + target + " :" + message + "\r\n";
         
         // チャンネル内の全メンバーに送信
-        for (std::map<int, Client>::iterator it = clients.begin(); it != clients.end(); ++it) {
+        for (std::map<int, Client>::iterator it =  Client::clients.begin(); it !=  Client::clients.end(); ++it) {
             if (it->first != client.fd && channel->hasMember(it->second.nickname)) {
                 it->second.wbuf += privmsgMsg;
                 std::printf("PRIVMSG: sending to fd=%d, nickname=%s, wbuf.size=%zu\n", 
@@ -901,7 +802,7 @@ static void handlePrivmsg(Client& client, const Message& msg) {
         // ニックネーム宛の場合
         // 相手のクライアントを検索
         bool found = false;
-        for (std::map<int, Client>::iterator it = clients.begin(); it != clients.end(); ++it) {
+        for (std::map<int, Client>::iterator it =  Client::clients.begin(); it !=  Client::clients.end(); ++it) {
             if (it->second.nickname == target) {
                 // 相手にメッセージを送信
                 std::string privmsgMsg = prefix(client) + " PRIVMSG " + target + " :" + message + "\r\n";
@@ -962,7 +863,7 @@ static void handlePart(Client& client, const Message& msg) {
     }
     
             // チャンネル内の全メンバーに送信
-        for (std::map<int, Client>::iterator it = clients.begin(); it != clients.end(); ++it) {
+        for (std::map<int, Client>::iterator it =  Client::clients.begin(); it !=  Client::clients.end(); ++it) {
             if (channel->hasMember(it->second.nickname)) {
                 it->second.wbuf += partMsg;
                 setPollout(it->first);
@@ -999,7 +900,7 @@ static void handleNick(Client& client, const Message& msg) {
     }
     
     // ニックネームの重複チェック
-    for (std::map<int, Client>::iterator it = clients.begin(); it != clients.end(); ++it) {
+    for (std::map<int, Client>::iterator it =  Client::clients.begin(); it !=  Client::clients.end(); ++it) {
         if (it->second.nickname == newNick) {
             sendNumeric(client, 433, client.nickname.empty() ? "*" : client.nickname, newNick + " :Nickname is already in use");
             return;
@@ -1008,12 +909,15 @@ static void handleNick(Client& client, const Message& msg) {
     
     // ニックネームを設定
     client.nickname = newNick;
-    
+    if(!client.username.empty()&&client.passOk==false){
+            client.wbuf += "ERROR :Closing link: ("+client.nickname+"@localhost"+") [You are not allowed to connect to this server]\r\n";
+        client.logout=true;
+    }
     // 登録完了チェック
-    checkRegistrationComplete(client);
+    client.checkRegistrationComplete();
     
     // 登録済みの場合のみ応答を送信
-    if (client.registered) {
+    if (client.passOk&&client.registered) {
         // ニックネーム変更の確認
         std::string nickMsg = prefix(client) + " NICK :" + newNick + "\r\n";
         client.wbuf += nickMsg;
@@ -1035,9 +939,20 @@ static void handleUser(Client& client, const Message& msg) {
     // ユーザー名とリアルネームを設定
     client.username = msg.args[0];
     client.realname = msg.args[3];
+    if(!client.nickname.empty()&&client.passOk==false){
+            client.wbuf += "ERROR :Closing link: ("+client.nickname+"@localhost"+") [You are not allowed to connect to this server]\r\n";
+         client.logout=true;
+    }
     
     // 登録完了チェック
-    checkRegistrationComplete(client);
+    client.checkRegistrationComplete();
+    // 登録済みの場合のみ応答を送信
+    if (client.passOk&&client.registered) {
+        // ニックネーム変更の確認
+        std::string userMsg = prefix(client) + " USER :" + std::string(client.username) + "\r\n";
+        client.wbuf += userMsg;
+        
+    }
 }
 
 static void handlePing(Client& client, const Message& msg) {
@@ -1062,8 +977,7 @@ static void handleQuit(Client& client, const Message& msg) {
     // 全在室チャンネルへQUITをブロードキャスト
     std::string quitMsg = prefix(client) + " QUIT :" + reason + "\r\n";
     
-    // クライアントが在室している全チャンネルを検索
-    std::vector<std::string> channelsToLeave;
+    
     for (std::map<std::string, Channel>::iterator it = channels.begin(); it != channels.end(); ++it) {
         if (it->second.hasMember(client.nickname)) {
             channelsToLeave.push_back(it->first);
@@ -1077,7 +991,7 @@ static void handleQuit(Client& client, const Message& msg) {
         
         if (channel) {
             // チャンネル内の全メンバーにQUIT通知を送信
-            for (std::map<int, Client>::iterator clientIt = clients.begin(); clientIt != clients.end(); ++clientIt) {
+            for (std::map<int, Client>::iterator clientIt =  Client::clients.begin(); clientIt !=  Client::clients.end(); ++clientIt) {
                 if (channel->hasMember(clientIt->second.nickname)) {
                     clientIt->second.wbuf += quitMsg;
                     std::printf("QUIT: sending notification to fd=%d, nickname=%s\n", 
@@ -1103,7 +1017,7 @@ static void handleQuit(Client& client, const Message& msg) {
         }
     }
     close(client.fd);  
-    clients.erase(client.fd);
+     Client::clients.erase(client.fd);
     std::printf("QUIT: %s disconnected from %zu channels\n", 
                 client.nickname.c_str(), channelsToLeave.size());
 }
@@ -1115,8 +1029,8 @@ static void handleUnknown(Client& client, const Message& msg) {
 
 // クライアント切断時の後処理関数
 static void cleanupClient(int clientFd) {
-    std::map<int, Client>::iterator it = clients.find(clientFd);
-    if (it == clients.end()) {
+    std::map<int, Client>::iterator it =  Client::clients.find(clientFd);
+    if (it ==  Client::clients.end()) {
         return;
     }
     
@@ -1140,7 +1054,7 @@ static void cleanupClient(int clientFd) {
         
         if (channel) {
             // チャンネル内の全メンバーにQUIT通知を送信
-            for (std::map<int, Client>::iterator clientIt = clients.begin(); clientIt != clients.end(); ++clientIt) {
+            for (std::map<int, Client>::iterator clientIt =  Client::clients.begin(); clientIt !=  Client::clients.end(); ++clientIt) {
                 if (clientIt->first != clientFd && channel->hasMember(clientIt->second.nickname)) {
                     clientIt->second.wbuf += quitMsg;
                     std::printf("DISCONNECT: sending notification to fd=%d, nickname=%s\n", 
@@ -1170,7 +1084,7 @@ static void cleanupClient(int clientFd) {
                 client.nickname.c_str(), channelsToLeave.size());
     
     // クライアントを削除
-    clients.erase(clientFd);
+     Client::clients.erase(clientFd);
 }
 
 // コマンドディスパッチ関数
@@ -1186,7 +1100,7 @@ static void dispatchCommand(Client& client, const Message& msg) {
     }
     
     // コマンドハンドラを検索
-    std::map<std::string, CommandHandler>::const_iterator it = commandHandlers.find(msg.cmd);
+    std::map<std::string, Client::CommandHandler>::const_iterator it = commandHandlers.find(msg.cmd);
     if (it != commandHandlers.end()) {
         std::printf("HANDLING: %s\n", msg.cmd.c_str());
         it->second(client, msg);
@@ -1327,7 +1241,7 @@ int main(int argc, char **argv) {
                     }
                     set_nonblock(cfd);
                     pfds.push_back((pollfd){ cfd, POLLIN, 0 });
-                    clients[cfd] = Client(cfd);
+                     Client::clients[cfd] = Client(cfd);
                     std::printf("accept: fd=%d\n", cfd);
                 }
                 continue;
@@ -1335,7 +1249,7 @@ int main(int argc, char **argv) {
 
             // 送信可能（先に処理）
             if (p.revents & POLLOUT) {
-                Client &cl = clients[p.fd];
+                Client &cl =  Client::clients[p.fd];
                 std::printf("POLLOUT: fd=%d, wbuf.size=%zu\n", p.fd, cl.wbuf.size());
                 if (!cl.wbuf.empty()) {
                     std::printf("SEND: fd=%d, wbuf.size=%zu\n", p.fd, cl.wbuf.size());
@@ -1343,7 +1257,7 @@ int main(int argc, char **argv) {
                     if (s <= 0) {
                         std::printf("close: fd=%d (send=%zd errno=%d)\n", p.fd, s, errno);
                         ::close(p.fd);
-                        clients.erase(p.fd);
+                         Client::clients.erase(p.fd);
                         pfds.erase(pfds.begin() + i);
                         --i;
                         continue;
@@ -1351,7 +1265,7 @@ int main(int argc, char **argv) {
                     cl.wbuf.erase(0, (size_t)s);
                     std::printf("SENT: fd=%d, bytes=%zd, remaining=%zu\n", p.fd, s, cl.wbuf.size());
                 }
-                if (clients.count(p.fd) && clients[p.fd].wbuf.empty()) {
+                if ( Client::clients.count(p.fd) &&  Client::clients[p.fd].wbuf.empty()) {
                     pfds[i].events &= ~POLLOUT; // 送り切ったら POLLOUT を外す
                     std::printf("REMOVE POLLOUT: fd=%d\n", p.fd);
                 }
@@ -1364,19 +1278,19 @@ int main(int argc, char **argv) {
                 if (r <= 0) {
                     std::printf("close: fd=%d (recv=%zd errno=%d)\n", p.fd, r, errno);
                     ::close(p.fd);
-                    clients.erase(p.fd);
+                     Client::clients.erase(p.fd);
                     pfds.erase(pfds.begin() + i);
                     --i;
                     continue;
                 }
 
-                Client &cl = clients[p.fd];
+                Client &cl =  Client::clients[p.fd];
                 cl.rbuf.append(buf, (size_t)r);
 
                 if (line_too_long(cl.rbuf)) {
                     std::printf("close: fd=%d (line too long)\n", p.fd);
                     ::close(p.fd);
-                    clients.erase(p.fd);
+                     Client::clients.erase(p.fd);
                     pfds.erase(pfds.begin() + i);
                     --i;
                     continue;
@@ -1413,6 +1327,14 @@ int main(int argc, char **argv) {
                         if (cl.wbuf.empty()) {
                             pfds[i].events &= ~POLLOUT; // 送信完了
                             std::printf("REMOVE POLLOUT (immediate): fd=%d\n", p.fd);
+                            if (cl.logout) {
+                                std::printf("Closing link after send: %s@localhost\n", cl.nickname.c_str());
+                                ::close(p.fd);
+                                Client::clients.erase(p.fd);
+                                pfds.erase(pfds.begin() + i);
+                                --i;
+                                continue;
+                            }
                         }
                     }
                 }
