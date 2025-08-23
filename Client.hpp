@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Client.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hnagashi <hnagashi@student.42.fr>          +#+  +:+       +#+        */
+/*   By: kanahash <kanahash@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/08/12 19:20:40 by hnagashi          #+#    #+#             */
-/*   Updated: 2025/08/21 10:39:53 by hnagashi         ###   ########.fr       */
+/*   Updated: 2025/08/22 20:10:08 by kanahash         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,6 +16,9 @@
 #include <string>
 #include <map>
 #include <unistd.h>
+//追加
+#include <cstdio>
+//
 #include "Parser.hpp"
 
 

@@ -3,16 +3,20 @@
 /*                                                        :::      ::::::::   */
 /*   Command.hpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hnagashi <hnagashi@student.42.fr>          +#+  +:+       +#+        */
+/*   By: kanahash <kanahash@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/08/12 19:20:40 by hnagashi          #+#    #+#             */
-/*   Updated: 2025/08/21 10:10:40 by hnagashi         ###   ########.fr       */
+/*   Updated: 2025/08/23 16:08:26 by kanahash         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef COMMAND_HPP
 #define COMMAND_HPP
 
+//追加
+#include <cstdlib>
+#include <sstream>
+//
 #include "Client.hpp"
 #include "Util.hpp"
 #include "Channel.hpp"

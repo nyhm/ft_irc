@@ -3,16 +3,21 @@
 /*                                                        :::      ::::::::   */
 /*   main.cpp                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hnagashi <hnagashi@student.42.fr>          +#+  +:+       +#+        */
+/*   By: kanahash <kanahash@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/08/21 10:47:23 by hnagashi          #+#    #+#             */
-/*   Updated: 2025/08/21 10:48:23 by hnagashi         ###   ########.fr       */
+/*   Updated: 2025/08/22 20:10:19 by kanahash         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 
 #include <netinet/in.h>
 #include <fcntl.h>
+//追加
+#include <cstdlib>
+#include <cstring>
+#include <cerrno>
+//
 
 #include "Parser.hpp"
 #include "Client.hpp"
