@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Channel.hpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hnagashi <hnagashi@student.42.fr>          +#+  +:+       +#+        */
+/*   By: kanahash <kanahash@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/08/21 09:41:49 by hnagashi          #+#    #+#             */
-/*   Updated: 2025/08/21 09:55:36 by hnagashi         ###   ########.fr       */
+/*   Updated: 2025/08/22 20:11:24 by kanahash         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,6 +15,9 @@
 #include <string>
 #include <set>
 #include <map>
+//追加
+#include <ctime>
+//
 #include "Client.hpp"
 
 struct Channel {

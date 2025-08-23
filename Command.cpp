@@ -71,11 +71,19 @@
     
     // 成功時の応答（順序を修正）
     
-    // RPL_TOPIC (332) - チャンネルトピック
-    if (!channel->topic.empty()) {
-        sendNumeric(client, 332, client.nickname, channelName + " :" + channel->topic);
-        sendNumeric(client, 333, client.nickname, channelName + " " + client.nickname + "!" + client.username + "@localhost" + " " + std::to_string(channel->topicTime));
-    } 
+	//変更
+	if (!channel->topic.empty()) {
+    sendNumeric(client, 332, client.nickname, channelName + " :" + channel->topic);
+
+    std::stringstream ss;
+    ss << channel->topicTime;
+    std::string topicTimeString = ss.str();
+
+    sendNumeric(client, 333, client.nickname, channelName + " " + client.nickname + "!" + client.username + "@localhost" + " " + topicTimeString);
+}
+
+// 
+
     
     // RPL_NAMREPLY (353) - チャンネルメンバーリスト
     std::string memberList = "= " + channelName + " :";
@@ -244,28 +252,34 @@
             std::printf("MODE: %s changed modes for %s: %s\n", 
                         client.nickname.c_str(), target.c_str(), response.c_str());
         }
-        }else{
-            //何もなかったらチャンネル内の情報表示
-            std::string modeStr = "+";
-            for (std::set<std::string>::const_iterator it = channel->modes.begin();
-                it != channel->modes.end(); ++it) {
-                modeStr += *it;  // 例: "t" "n" があれば "+tn"
-            }
+        }else { //変更
+    // nothing to display if no modes were set
+    std::string modeStr = "+";
+    for (std::set<std::string>::const_iterator it = channel->modes.begin();
+         it != channel->modes.end(); ++it) {
+        modeStr += *it;  // example: "t" "n" becomes "+tn"
+    }
 
-            // 数値応答を作成
-            std::string reply = ":irc.example.com 324 " 
-                            + client.nickname + " "
-                            + channel->name + " "
-                            + modeStr + "\r\n"
-                            +":irc.example.com 329 " 
-                            + client.nickname + " "
-                            + channel->name + " "
-                            + std::to_string(channel->creationTime) + "\r\n";
+    // create the numeric replies
+    std::stringstream ss;
+    ss << channel->creationTime;
+    std::string creationTimeString = ss.str();
 
-            client.wbuf += reply;
-        }
-        
-    } else {
+    std::string reply = ":irc.example.com 324 "
+                    + client.nickname + " "
+                    + channel->name + " "
+                    + modeStr + "\r\n"
+                    +":irc.example.com 329 "
+                    + client.nickname + " "
+                    + channel->name + " "
+                    + creationTimeString + "\r\n";
+
+    client.wbuf += reply;
+}
+
+//
+
+}else {
         // ユーザーモード（未実装）
         sendNumeric(client, 502, client.nickname, target + " :User modes not supported");
     }
@@ -431,19 +445,23 @@
         return;
     }
     
-    
-    // トピックの取得（引数が1つの場合）
-    if (msg.args.size() == 1) {
-        if (channel->topic.empty()) {
-            // トピック未設定
-            sendNumeric(client, 331, client.nickname, channelName + " :No topic is set");
-        } else {
-            // トピック設定済み
-            sendNumeric(client, 332, client.nickname, channelName + " :" + channel->topic);
-            sendNumeric(client, 333, client.nickname, channelName + " " + client.nickname + "!" + client.username + " " + std::to_string(channel->topicTime));
-        }
-        return;
+	//変更
+	if (msg.args.size() == 1) {
+    if (channel->topic.empty()) {
+        // トピック未設定
+        sendNumeric(client, 331, client.nickname, channelName + " :No topic is set");
+    } else {
+        // トピック設定済み
+        sendNumeric(client, 332, client.nickname, channelName + " :" + channel->topic);
+
+        std::stringstream ss;
+        ss << channel->topicTime;
+        std::string topicTimeString = ss.str();
+
+        sendNumeric(client, 333, client.nickname, channelName + " " + client.nickname + "!" + client.username + " " + topicTimeString);
     }
+	//
+
     // チャンネルのメンバーかチェック
     if (!channel->hasMember(client.nickname)) {
         sendNumeric(client, 442, client.nickname.empty() ? "*" : client.nickname, channelName + " :You're not on that channel");
@@ -479,6 +497,7 @@
     
     std::printf("TOPIC: %s set topic for %s: %s\n", 
                 client.nickname.c_str(), channelName.c_str(), newTopic.c_str());
+}
 }
 
  void handlePrivmsg(Client& client, const Message& msg) {
@@ -545,6 +564,7 @@
         std::printf("PRIVMSG: %s sent to %s: %s\n", 
                     client.nickname.c_str(), target.c_str(), message.c_str());
     }
+
 }
 
  void handlePart(Client& client, const Message& msg) {
