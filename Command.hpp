@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Command.hpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: kanahash <kanahash@student.42.fr>          +#+  +:+       +#+        */
+/*   By: hnagashi <hnagashi@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/08/12 19:20:40 by hnagashi          #+#    #+#             */
-/*   Updated: 2025/08/23 16:08:26 by kanahash         ###   ########.fr       */
+/*   Updated: 2025/08/25 05:16:27 by hnagashi         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,6 +21,7 @@
 #include "Util.hpp"
 #include "Channel.hpp"
 
+void handleWho(Client& client, const Message& msg);
 void handleJoin(Client& client, const Message& msg);
 void handleMode(Client& client, const Message& msg);
 void handleKick(Client& client, const Message& msg);

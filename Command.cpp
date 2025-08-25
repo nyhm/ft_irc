@@ -1,5 +1,11 @@
 #include "Command.hpp"
-
+void handleWho(Client& client, const Message& msg) {
+    if (msg.args.size() < 1) {
+        sendNumeric(client, 461, client.nickname.empty() ? "*" : client.nickname, "JOIN :Not enough parameters.");
+        return;
+    }else 
+        sendNumeric(client, 999, client.nickname.empty() ? "*" : client.nickname, "WHO :WHOが動いた.");
+}
 
 
  void handleJoin(Client& client, const Message& msg) {
@@ -447,18 +453,19 @@
     
 	//変更
 	if (msg.args.size() == 1) {
-    if (channel->topic.empty()) {
-        // トピック未設定
-        sendNumeric(client, 331, client.nickname, channelName + " :No topic is set");
-    } else {
-        // トピック設定済み
-        sendNumeric(client, 332, client.nickname, channelName + " :" + channel->topic);
+        if (channel->topic.empty()) {
+            // トピック未設定
+            sendNumeric(client, 331, client.nickname, channelName + " :No topic is set");
+        } else {
+            // トピック設定済み
+            sendNumeric(client, 332, client.nickname, channelName + " :" + channel->topic);
 
-        std::stringstream ss;
-        ss << channel->topicTime;
-        std::string topicTimeString = ss.str();
+            std::stringstream ss;
+            ss << channel->topicTime;
+            std::string topicTimeString = ss.str();
 
-        sendNumeric(client, 333, client.nickname, channelName + " " + client.nickname + "!" + client.username + " " + topicTimeString);
+            sendNumeric(client, 333, client.nickname, channelName + " " + client.nickname + "!" + client.username + " " + topicTimeString);
+        }
     }
 	//
 
@@ -498,7 +505,7 @@
     std::printf("TOPIC: %s set topic for %s: %s\n", 
                 client.nickname.c_str(), channelName.c_str(), newTopic.c_str());
 }
-}
+
 
  void handlePrivmsg(Client& client, const Message& msg) {
     if (msg.args.size() < 2) {

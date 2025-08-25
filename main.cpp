@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   main.cpp                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: kanahash <kanahash@student.42.fr>          +#+  +:+       +#+        */
+/*   By: hnagashi <hnagashi@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/08/21 10:47:23 by hnagashi          #+#    #+#             */
-/*   Updated: 2025/08/22 20:10:19 by kanahash         ###   ########.fr       */
+/*   Updated: 2025/08/25 05:16:15 by hnagashi         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -113,6 +113,7 @@ int main(int argc, char **argv) {
     commandHandlersInit["QUIT"] = handleQuit;
     commandHandlersInit["UNKNOWN"] = handleUnknown;
     commandHandlersInit["CAP"] = handleCap;
+    commandHandlersInit["WHO"] = handleWho;
 
     if (argc != 3) {
         std::fprintf(stderr, "Usage: %s <port> <pass>\n", argv[0]);
