@@ -16,6 +16,16 @@
 #include "Channel.hpp"
 
 std::map<int, Client> Client::clients;
+Client* Client::findClientByNick(const std::string& nick) {
+    for (std::map<int, Client>::iterator it = Client::clients.begin();
+         it != Client::clients.end(); ++it) {
+        if (it->second.nickname == nick) {
+            return &it->second;
+        }
+    }
+    return NULL; // 見つからなければ nullptr
+}
+
 // 登録完了チェック関数
 void Client::checkRegistrationComplete() {
     if (!registered && passOk && !nickname.empty() && !username.empty()&&capDone!=true) {
@@ -30,18 +40,7 @@ void Client::checkRegistrationComplete() {
     {
         std::printf("ログイン\r\n");
         registered = true;
-
-        // 001〜004 を返す
-        wbuf += ":irc.example.com 001 " + nickname + " :Welcome to the IRC network " + nickname + "\r\n";
-        wbuf += ":irc.example.com 002 " + nickname + " :Your host is irc.example.com, running version 1.0\r\n";
-        wbuf += ":irc.example.com 003 " + nickname + " :This server was created just now\r\n";
-        wbuf += ":irc.example.com 004 " + nickname + " irc.example.com 1.0 o o\r\n";
-
-        // MOTD (おまけ)
-        wbuf += ":irc.example.com 375 " + nickname + " :- irc.example.com Message of the Day -\r\n";
-        wbuf += ":irc.example.com 372 " + nickname + " :- Hello world!\r\n";
-        wbuf += ":irc.example.com 376 " + nickname + " :End of /MOTD command.\r\n";
-
+        sendWelcome(*this);
         std::printf("REGISTERED: %s\n", nickname.c_str());
     }
 }

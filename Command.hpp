@@ -21,6 +21,7 @@
 #include "Util.hpp"
 #include "Channel.hpp"
 
+void handleWhois(Client& client, const Message& msg);
 void handleWho(Client& client, const Message& msg);
 void handleJoin(Client& client, const Message& msg);
 void handleMode(Client& client, const Message& msg);

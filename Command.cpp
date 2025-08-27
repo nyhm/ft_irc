@@ -1,11 +1,33 @@
 #include "Command.hpp"
-void handleWho(Client& client, const Message& msg) {
-    if (msg.args.size() < 1) {
-        sendNumeric(client, 461, client.nickname.empty() ? "*" : client.nickname, "JOIN :Not enough parameters.");
-        return;
-    }else 
-        sendNumeric(client, 999, client.nickname.empty() ? "*" : client.nickname, "WHO :WHOが動いた.");
+
+void handleWho(Client &client, const Message &msg) {
+    std::string target = msg.args.empty() ? "" : msg.args[0];
+    for (std::map<int, Client>::iterator it = Client::clients.begin(); it != Client::clients.end(); ++it) {
+        Client &cl = it->second;
+        // とりあえず全員返す（チャンネルで絞るのは後回しでも可）
+        sendNumeric(client, 352, client.nickname,
+            target + " " + cl.username + " " + "localhost" + " " +
+            "server" + " " + cl.nickname + " H :0 " + cl.realname);
+    }
+    sendNumeric(client, 315, client.nickname, target + " :End of WHO list");
 }
+
+void handleWhois(Client &client, const Message &msg) {
+    if (msg.args.empty()) {
+        sendNumeric(client, 431, client.nickname, ":No nickname given"); // ERR_NONICKNAMEGIVEN
+        return;
+    }
+    std::string nick = msg.args[0];
+    Client *target = Client::findClientByNick(nick);
+    if (!target) {
+        sendNumeric(client, 401, client.nickname, nick + " :No such nick");
+        return;
+    }
+    sendNumeric(client, 311, client.nickname,
+        target->nickname + " " + target->username + " localhost * :" + target->realname);
+    sendNumeric(client, 318, client.nickname, target->nickname + " :End of WHOIS list");
+}
+
 
 
  void handleJoin(Client& client, const Message& msg) {
@@ -466,6 +488,7 @@ void handleWho(Client& client, const Message& msg) {
 
             sendNumeric(client, 333, client.nickname, channelName + " " + client.nickname + "!" + client.username + " " + topicTimeString);
         }
+        return;
     }
 	//
 
@@ -504,6 +527,7 @@ void handleWho(Client& client, const Message& msg) {
     
     std::printf("TOPIC: %s set topic for %s: %s\n", 
                 client.nickname.c_str(), channelName.c_str(), newTopic.c_str());
+    
 }
 
 

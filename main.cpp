@@ -114,6 +114,7 @@ int main(int argc, char **argv) {
     commandHandlersInit["UNKNOWN"] = handleUnknown;
     commandHandlersInit["CAP"] = handleCap;
     commandHandlersInit["WHO"] = handleWho;
+    commandHandlersInit["WHOIS"] = handleWhois;
 
     if (argc != 3) {
         std::fprintf(stderr, "Usage: %s <port> <pass>\n", argv[0]);

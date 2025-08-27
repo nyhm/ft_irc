@@ -47,8 +47,9 @@ bool isValidChannelName(const std::string& channelName) {
     
     // チャンネル名に空白、制御文字、カンマを含まない
     for (size_t i = 0; i < channelName.length(); ++i) {
-        if (channelName[i] == ' ' || channelName[i] == ',' || 
-            (channelName[i] >= 0 && channelName[i] <= 31)) {
+        unsigned char c = static_cast<unsigned char>(channelName[i]);
+        if (c == ' ' || c == ',' || 
+            (c <= 31)) {
             return false;
         }
     }

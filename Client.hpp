@@ -48,6 +48,7 @@ class Client{
     typedef void (*CommandHandler)(Client&, const Message&);
     // 登録完了チェック関数
     void checkRegistrationComplete();
+    static Client* findClientByNick(const std::string& nick);
     
 
 };
